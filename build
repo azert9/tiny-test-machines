@@ -1,0 +1,78 @@
+#!/bin/bash
+set -eu
+
+tmp_dir="$(mktemp -d)"
+function cleanup {
+  cd /
+  rm -rf "$tmp_dir"
+}
+trap cleanup EXIT
+
+mkdir -p "$tmp_dir/bin"
+
+cache_dir=./cache
+mkdir -p "$cache_dir"
+
+# Building kernel
+
+if ! [ -e "$cache_dir/linux-6.5.4.tar.xz" ]; then
+  wget -O "$cache_dir/linux-6.5.4.tar.xz" https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.5.4.tar.xz
+fi
+
+if ! [ -e "$cache_dir/linux-6.5.4" ]; then
+  (cd "$cache_dir" && tar xf ./linux-6.5.4.tar.xz)
+fi
+
+function build_kernel {
+  if ! [ -e .config ]; then
+    make defconfig
+    ./scripts/config --enable VSOCKETS
+    ./scripts/config --enable VSOCKETS_DIAG
+    ./scripts/config --enable VSOCKETS_LOOPBACK
+    ./scripts/config --enable VIRTIO_VSOCKETS
+    ./scripts/config --disable VHOST_VSOCK  # this is for the host system
+  fi
+  if ! [ -e vmlinux ]; then
+    make -j"$(nproc)"
+  fi
+}
+
+(cd "$cache_dir/linux-6.5.4" && build_kernel)
+
+# Adding busybox to initramfs
+
+if ! [ -e "$cache_dir/busybox" ]; then
+  wget -O "$cache_dir/busybox" https://www.busybox.net/downloads/binaries/1.35.0-x86_64-linux-musl/busybox
+fi
+
+install "$cache_dir/busybox" "$tmp_dir/bin"
+
+"$tmp_dir/bin/busybox" --install "$tmp_dir/bin"
+
+# Adding dropbear to initramfs
+
+if ! [ -e "$cache_dir/dropbear-2022.82.tar.bz2" ]; then
+  wget -O "$cache_dir/dropbear-2022.82.tar.bz2" https://matt.ucc.asn.au/dropbear/releases/dropbear-2022.82.tar.bz2
+fi
+
+if ! [ -e "$cache_dir/dropbear-2022.82" ]; then
+  (cd "$cache_dir" && tar xf ./dropbear-2022.82.tar.bz2)
+fi
+
+if ! [ -e "$cache_dir/dropbear-2022.82/dropbear" ]; then
+  (cd "$cache_dir/dropbear-2022.82" && ./configure && make)
+fi
+
+# Adding init to initramfs
+
+CGO_ENABLED=0 go build -C ./init -o "$tmp_dir/init"
+
+"$tmp_dir/bin/busybox" --install "$tmp_dir/bin"
+
+# Packing initramfs
+
+out="$(readlink -f "$cache_dir/initramfs.img")"
+(
+  cd "$tmp_dir/"
+  find -print0 | cpio --null --create --verbose --format=newc >"$out"
+)
