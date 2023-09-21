@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/azert9/tiny-test-machines/pkg/protocol"
 	"io"
+	"os"
 	"os/exec"
 	"time"
 )
@@ -19,11 +20,17 @@ func (v *VM) Sleep(req *protocol.SleepRequest, resp *protocol.SleepResponse) err
 
 func (v *VM) Exec(req *protocol.ExecRequest, resp *protocol.ExecResponse) error {
 
+	resp.ExitCode = -2
+
 	if len(req.Args) == 0 {
 		return fmt.Errorf("not enough arguments")
 	}
 
 	cmd := exec.Command(req.Args[0], req.Args[1:]...)
+
+	// we do not have /dev/null, so we use the currently opened file
+	cmd.Stdin = os.Stdin
+	cmd.Stderr = os.Stderr
 
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
@@ -54,9 +61,10 @@ func (v *VM) Exec(req *protocol.ExecRequest, resp *protocol.ExecResponse) error 
 		if errors.As(processErr, &exitErr) {
 			resp.ExitCode = exitErr.ExitCode()
 		} else {
-			resp.ExitCode = -2
 			return exitErr
 		}
+	} else {
+		resp.ExitCode = 0
 	}
 
 	return nil
