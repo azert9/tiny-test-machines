@@ -69,3 +69,28 @@ func (v *VM) Exec(req *protocol.ExecRequest, resp *protocol.ExecResponse) error 
 
 	return nil
 }
+
+func (v *VM) Upload(req *protocol.UploadRequest, resp *protocol.UploadResponse) error {
+
+	f, err := os.OpenFile(req.Path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	closed := false
+	defer func() {
+		if !closed {
+			_ = f.Close()
+		}
+	}()
+
+	if _, err := f.Write(req.Data); err != nil {
+		return err
+	}
+
+	closed = true
+	if err := f.Close(); err != nil {
+		return err
+	}
+
+	return nil
+}

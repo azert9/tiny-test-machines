@@ -19,3 +19,11 @@ type ExecResponse struct {
 	ExitCode int
 	Stdout   []byte
 }
+
+type UploadRequest struct {
+	Path string
+	Data []byte
+}
+
+type UploadResponse struct {
+}
