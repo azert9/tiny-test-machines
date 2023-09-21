@@ -87,6 +87,10 @@ func run() error {
 		return err
 	}
 
+	if err := os.Mkdir("/tmp", 0755); err != nil {
+		return err
+	}
+
 	if err := os.Mkdir("/sys", 0755); err != nil {
 		return err
 	}
