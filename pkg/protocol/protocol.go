@@ -10,3 +10,12 @@ type SleepRequest struct {
 
 type SleepResponse struct {
 }
+
+type ExecRequest struct {
+	Args []string
+}
+
+type ExecResponse struct {
+	ExitCode int
+	Stdout   []byte
+}
