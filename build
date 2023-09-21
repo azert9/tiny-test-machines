@@ -65,7 +65,7 @@ fi
 
 # Adding init to initramfs
 
-CGO_ENABLED=0 go build -C ./init -o "$tmp_dir/init"
+CGO_ENABLED=0 go build -C ./cmd/init -o "$tmp_dir/init"
 
 "$tmp_dir/bin/busybox" --install "$tmp_dir/bin"
 
