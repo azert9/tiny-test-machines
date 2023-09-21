@@ -107,16 +107,22 @@ func handleClientConn(task *utils.Task, conn net.Conn, vsockConnections <-chan n
 
 	// Relaying data between client and VM
 
+	var shuttingDown atomic.Bool
+
 	task.StartSubtask(func(task *utils.Task) error {
 		if _, err := io.Copy(vsockConn, conn); err != nil {
 			return fmt.Errorf("copying data from client to VM: %v", err)
 		}
-		return vsockConn.Close()
+		shuttingDown.Store(true)
+		utils.CloseOrLog(vsockConn, "warning: error closing vsocket connection")
+		return nil
 	})
 
 	task.StartSubtask(func(task *utils.Task) error {
 		if _, err := io.Copy(conn, vsockConn); err != nil {
-			return fmt.Errorf("copying data from VM to client: %v", err)
+			if !shuttingDown.Load() {
+				return fmt.Errorf("copying data from VM to client: %v", err)
+			}
 		}
 		return nil
 	})
