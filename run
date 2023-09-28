@@ -3,6 +3,16 @@ set -eu
 
 kernel_image=./cache/linux-6.5.4/arch/x86_64/boot/bzImage
 
+tmpdir="$(mktemp -d)"
+function cleanup
+{
+  cd /
+  rm -rf "$tmpdir"
+}
+trap cleanup EXIT
+
+truncate --size=10M "$tmpdir/disk.img"
+
 qemu-system-x86_64 \
   -enable-kvm \
   -kernel "$kernel_image" \
@@ -11,5 +21,6 @@ qemu-system-x86_64 \
   -nodefaults \
   -nographic -serial mon:stdio \
   -device vhost-vsock-pci,guest-cid="${TTM_CID:-3}" \
+  -device ide-hd,drive=d1 -blockdev file,node-name=d1,filename="$tmpdir/disk.img" \
   -m 512 \
   -no-reboot

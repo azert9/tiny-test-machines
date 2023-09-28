@@ -105,6 +105,10 @@ func run() error {
 		return err
 	}
 
+	if err := cmd("mknod", "/dev/sda", "b", "8", "0"); err != nil {
+		return err
+	}
+
 	kernelArgs, err := getKernelArgs()
 	if err != nil {
 		return err
